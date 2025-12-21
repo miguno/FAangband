@@ -2376,9 +2376,15 @@ size_t Term_mbstowcs_win(wchar_t *dest, const char *src, int n)
 			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
 				required = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
 											   src, -1, NULL, 0);
+				if (required <= 0)
+					return (size_t)-1;
 				tmp = malloc(required * sizeof(wchar_t));
-				MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, src, -1, tmp,
+				res = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, src, -1, tmp,
 									required);
+				if (res <= 0) {
+					free(tmp);
+					return (size_t)-1;
+				}
 				memcpy(dest, tmp, n * sizeof(wchar_t));
 				free(tmp);
 				return n;
@@ -4501,9 +4507,8 @@ static LRESULT FAR PASCAL AngbandWndProc(HWND hWnd, UINT uMsg,
 		{
 			/* Ignore if palette change caused by itself */
 			if ((HWND)wParam == hWnd) return 0;
-
-			/* Fall through... */
 		}
+		/* fall through */
 
 		case WM_QUERYNEWPALETTE:
 		{
@@ -4738,8 +4743,8 @@ static LRESULT FAR PASCAL AngbandListProc(HWND hWnd, UINT uMsg,
 		{
 			/* ignore if palette change caused by itself */
 			if ((HWND)wParam == hWnd) return false;
-			/* otherwise, fall through!!! */
 		}
+		/* fall through */
 
 		case WM_QUERYNEWPALETTE:
 		{
@@ -5138,6 +5143,12 @@ int FAR PASCAL WinMain(HINSTANCE hInst, HINSTANCE hPrevInst,
 
 	/* Unused parameter */
 	(void)nCmdShow;
+
+	if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        /* Reopen stdout/stderr so printf works */
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+    }
 
 #ifdef USE_SAVER
 	if (lpCmdLine && ((*lpCmdLine == '-') || (*lpCmdLine == '/'))) {

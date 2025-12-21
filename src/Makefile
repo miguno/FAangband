@@ -10,10 +10,10 @@ PROG    = $(PROGNAME)$(PROG_SUFFIX)
 # Will dynamically generate version.h with the build number.
 CFLAGS += -DHAVE_VERSION_H
 
-CFLAGS += -I. -fPIC -std=c99 -O0
+CFLAGS += -I. -fPIC -std=c99
 # Replace above line with the two below and then look at gmon.out
 # to do performance monitoring
-# CFLAGS += -g -pg -I. -fPIC -std=c99 -O0
+# CFLAGS += -g -pg -I. -fPIC -std=c99
 # LDFLAGS += -g -pg
 
 # gcov intermediate data
@@ -44,6 +44,16 @@ $(PROGNAME).a: $(OBJECTS)
 	else \
 		$(LINK_FAILED); \
 	fi
+
+# Allow for some introspection:  have rules to print out names that something
+# downstream could use.  Have the output start with "our-<something>=" so it
+# can very likely be separated from whatever other junk the build system prints
+# out.
+print-project-name:
+	@echo our-project-name=${NAME}
+
+print-executable-name:
+	@echo our-executable-name=${PROG}
 
 check: tests
 tests: $(PROGNAME).a
@@ -125,7 +135,7 @@ install-extra:
 		done ; \
 		for i in zlib1.dll libpng12.dll ; do \
 			${INSTALL_STATUS}; \
-			if ${INSTALL} -m 644 win/dll/$$i ../$$i ; then \
+			if ${INSTALL} -m 755 win/dll/$$i ../$$i ; then \
 				${INSTALL_OK}; \
 			else \
 				${INSTALL_FAILED}; \
@@ -146,4 +156,4 @@ post-install:
 	fi
 
 FORCE :
-.PHONY : check tests coverage clean-coverage tests/ran-already
+.PHONY : print-project-name print-executable-name check tests coverage clean-coverage tests/ran-already
