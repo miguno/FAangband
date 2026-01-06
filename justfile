@@ -17,21 +17,56 @@ system-info:
     @echo "os: {{os()}}"
     @echo "os family: {{os_family()}}"
 
-# build with Makefile.osx
+# build native macOS app
 [group('development')]
-build-macos:
+build-macos-app:
     # See docs/hacking/compiling.rst
     (cd src && make -f Makefile.osx clean install) || exit 1
+    @echo
     @echo "Run the game via 'FAangband.app' in the top-level project folder"
 
-# debug build with Makefile.cocoa
+# build console macOS binary with ncurses support
 [group('development')]
-debug-build-macos:
+build-macos-console:
+    (cd src && make -f Makefile.osx-ncurses clean install) || exit 1
+    @echo
+    @echo "Run the 'faangband' binary in the top-level project folder."
+
+# debug build native macOS app
+[group('development')]
+debug-build-macos-app:
     # See docs/hacking/compiling.rst
     (cd src && make -f Makefile.osx OPT="-g -O1 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=address" clean install) || exit 1
-    @echo "Run the game (debug build) via 'Sil.app' in the top-level project folder"
+    @echo "Run the game (debug build) via 'FAangband.app' in the top-level project folder"
+
+# debug build console macOS binary with ncurses support
+[group('development')]
+debug-build-macos-console:
+    # See docs/hacking/compiling.rst
+    (cd src && make -f Makefile.osx-ncurses OPT="-g -O1 -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=address" clean install) || exit 1
+    @echo "Run the game (debug build) via the 'faangband' binary in the top-level project folder."
 
 # run FAangband as a native macOS app
 [group('app')]
 run-macos:
+    open ./FAangband.app
+
+# run FAangband as console binary (ASCII mode)
+[group('app')]
+run-console:
+    # Options are explained at
+    # https://github.com/angband/angband/blob/e723430/src/main-gcu.c#L1465-L1491
+    ./faangband -mgcu -- -n6 -right "60x27,*" -bottom "*x12"
+
+# run FAangband as console Linux binary (ASCII mode)
+[group('app')]
+run-linux-console: run-console
+
+# run FAangband as console macOS binary (ASCII mode)
+[group('app')]
+run-macos-console: run-console
+
+# run FAangband as a native macOS app
+[group('app')]
+run-macos-app:
     open ./FAangband.app
