@@ -72,18 +72,22 @@
 #include "ui-prefs.h"
 #include "win/win-menu.h"
 
-/* Set the minimum version of Windows to accept so AlphaBlend() is available */
+/* Set the minimum version of Windows to accept:
+ * - ShellExecuteA() requires Windows XP (_WIN32_WINNT >= 0x0501)
+ * - AlphaBlend() requires Windows 2000 (_WIN32_WINNT >= 0x0500)
+ */
 #ifndef WINVER
-#define WINVER 0x0500
-#elif WINVER < 0x0500
+#define WINVER 0x0501
+#elif WINVER < 0x0501
 #undef WINVER
-#define WINVER 0x0500
+#define WINVER 0x0501
 #endif
+
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0500
-#elif _WIN32_WINNT < 0x0500
+#define _WIN32_WINNT 0x0501
+#elif _WIN32_WINNT < 0x0501
 #undef _WIN32_WINNT
-#define _WIN32_WINNT 0x0500
+#define _WIN32_WINNT 0x0501
 #endif
 
 #include <locale.h>
@@ -147,6 +151,7 @@
  */
 #include <windows.h>
 #include <windowsx.h>
+#include <shellapi.h>
 
 #ifndef GetWindowLongPtr
 #define GetWindowLongPtr GetWindowLong
@@ -2361,7 +2366,7 @@ static errr Term_pict_win(int x, int y, int n,
  *     require success and a partial conversion. So allocate space for it to
  *     succeed, and do the partial copy into dest.
  */
-size_t Term_mbstowcs_win(wchar_t *dest, const char *src, int n)
+static size_t Term_mbstowcs_win(wchar_t *dest, const char *src, int n)
 {
 	int res;
 	int required;
@@ -2399,7 +2404,7 @@ size_t Term_mbstowcs_win(wchar_t *dest, const char *src, int n)
 }
 
 
-int Term_wcsz_win(void)
+static int Term_wcsz_win(void)
 {
 	/*
 	 * Any Unicode code point is representable by at most 4 bytes in UTF-8.
@@ -2416,7 +2421,7 @@ int Term_wcsz_win(void)
  * the reverse conversion so that file output from screen captures and text
  * blocks properly translates any multibyte characters.
  */
-int Term_wctomb_win(char *s, wchar_t wchar)
+static int Term_wctomb_win(char *s, wchar_t wchar)
 {
 	/*
 	 * If only want compatibility with Vista and later, could use
@@ -2437,7 +2442,7 @@ int Term_wctomb_win(char *s, wchar_t wchar)
  * of wide characters in the core's text_out_to_screen() is consistent with what
  * Term_mbstowcs_win() does.
  */
-int Term_iswprint_win(wint_t wc)
+static int Term_iswprint_win(wint_t wc)
 {
 	/*
 	 * It's a UTF-16 value, but can cast and test as UTF-32 (if it's the
@@ -3307,15 +3312,58 @@ static void start_screensaver(void)
 
 #endif /* USE_SAVER */
 
+static bool open_url(const char *url)
+{
+	HINSTANCE res = ShellExecuteA(
+		NULL,
+		"open",
+		url,
+		NULL,
+		NULL,
+		SW_SHOWNORMAL
+	);
+	return ((INT_PTR)res > 32);
+}
+
+static bool open_local_docs(void)
+{
+	char exe_path[MAX_PATH];
+	char *slash;
+	char doc_path[MAX_PATH];
+	char url[MAX_PATH + 8];
+	DWORD attrs;
+
+	if (!GetModuleFileNameA(NULL, exe_path, sizeof(exe_path)))
+		return false;
+	slash = strrchr(exe_path, '\\');
+	if (!slash)
+		return false;
+	*slash = '\0';
+	snprintf(doc_path, sizeof(doc_path),
+	         "%s\\docs\\index.html", exe_path);
+	attrs = GetFileAttributesA(doc_path);
+	if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY))
+		return false;
+	snprintf(url, sizeof(url), "file:///%s", doc_path);
+
+	return open_url(url);
+}
 
 /**
- * Display a help file
+ * Display help
  */
 static void display_help(void)
 {
-	Term_keypress('?',0);
-}
+	if (open_local_docs())
+		return;
 
+	if (open_url("https://angband.readthedocs.io/en/latest/"))
+		return;
+
+	if (inkey_flag) {
+    	Term_keypress('?', 0);
+	}
+}
 
 /**
  * Process a menu command
