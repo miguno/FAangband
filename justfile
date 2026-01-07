@@ -17,6 +17,13 @@ system-info:
     @echo "os: {{os()}}"
     @echo "os family: {{os_family()}}"
 
+# build console Linux binary
+[group('development')]
+build-linux-console:
+    (cd src && make -f Makefile.std clean install) || exit 1
+    @echo
+    @echo "Run the 'faangband' binary in the top-level project folder."
+
 # build native macOS app
 [group('development')]
 build-macos-app:
