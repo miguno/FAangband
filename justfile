@@ -17,10 +17,13 @@ system-info:
     @echo "os: {{os()}}"
     @echo "os family: {{os_family()}}"
 
-# build console Linux binary
+# build Linux binary with SDL2 support
 [group('development')]
-build-linux-console:
-    (cd src && make -f Makefile.std clean install) || exit 1
+build-linux:
+    @echo "== Installing Linux dependencies (Fedora) for SDL2 support"
+    sudo dnf install -y SDL2_image-devel SDL2_mixer-devel SDL2_sound-devel SDL2_ttf-devel
+    @echo "== Building Linux binary =="
+    (cd src && make -f Makefile.std-sdl2 clean install) || exit 1
     @echo
     @echo "Run the 'faangband' binary in the top-level project folder."
 
@@ -65,9 +68,14 @@ run-console:
     # https://github.com/angband/angband/blob/e723430/src/main-gcu.c#L1465-L1491
     ./faangband -mgcu -- -n6 -right "60x27,*" -bottom "*x12"
 
-# run FAangband as console Linux binary (ASCII mode)
+# run FAangband on Linux as console app (ASCII mode)
 [group('app')]
 run-linux-console: run-console
+
+# run FAangband on Linux as SDL2 app
+[group('app')]
+run-linux-app:
+    ./faangband -g -msdl2 -ssdl
 
 # run FAangband as console macOS binary (ASCII mode)
 [group('app')]
