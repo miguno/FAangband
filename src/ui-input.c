@@ -298,30 +298,24 @@ void anykey(void)
  */
 struct keypress inkey(void)
 {
-	ui_event ke = EVENT_EMPTY;
+	ui_event ke = { .key = KEYPRESS_NULL };
 
 	while (ke.type != EVT_ESCAPE && ke.type != EVT_KBRD &&
 		   ke.type != EVT_MOUSE && ke.type != EVT_BUTTON)
 		ke = inkey_ex();
 
 	/* Make the event a keypress */
-	if (ke.type == EVT_ESCAPE) {
-		ke.type = EVT_KBRD;
-		ke.key.code = ESCAPE;
-		ke.key.mods = 0;
-	} else if (ke.type == EVT_MOUSE) {
-		if (ke.mouse.button == 1) {
-			ke.type = EVT_KBRD;
-			ke.key.code = '\n';
-			ke.key.mods = 0;
-		} else {
-			ke.type = EVT_KBRD;
-			ke.key.code = ESCAPE;
-			ke.key.mods = 0;
-		}
-	} else if (ke.type == EVT_BUTTON) {
-		ke.type = EVT_KBRD;
-	}
+    if (ke.type == EVT_ESCAPE) {
+        ke = (ui_event){ .key = { .type = EVT_KBRD, .code = ESCAPE, .mods = 0 } };
+    } else if (ke.type == EVT_MOUSE) {
+        ke = (ui_event){ .key = { 
+            .type = EVT_KBRD,
+            .code = (ke.mouse.button == 1 ? '\n' : ESCAPE),
+            .mods = 0 
+        } };
+    } else if (ke.type == EVT_BUTTON) {
+        ke.key.type = EVT_KBRD;
+    }
 
 	return ke.key;
 }
@@ -332,18 +326,16 @@ struct keypress inkey(void)
  */
 ui_event inkey_m(void)
 {
-	ui_event ke = EVENT_EMPTY;
+	ui_event ke = { .key = KEYPRESS_NULL };
 
 	/* Only accept a keypress */
 	while (ke.type != EVT_ESCAPE && ke.type != EVT_KBRD	&&
 		   ke.type != EVT_MOUSE  && ke.type != EVT_BUTTON)
 		ke = inkey_ex();
 	if (ke.type == EVT_ESCAPE) {
-		ke.type = EVT_KBRD;
-		ke.key.code = ESCAPE;
-		ke.key.mods = 0;
+		ke = (ui_event){ .key = { .type = EVT_KBRD, .code = ESCAPE, .mods = 0 } };
 	} else if (ke.type == EVT_BUTTON) {
-		ke.type = EVT_KBRD;
+		ke.key.type = EVT_KBRD;
 	}
 
   return ke;
@@ -954,7 +946,7 @@ bool askfor_aux_ext(char *buf, size_t len,
 
 	/* Process input */
 	while (!done) {
-		ui_event in;
+		ui_event in = { .key = KEYPRESS_NULL };
 
 		/* Place cursor */
 		Term_gotoxy(x + k, y);
@@ -969,13 +961,11 @@ bool askfor_aux_ext(char *buf, size_t len,
 				break;
 			}
 			if (in.type == EVT_BUTTON) {
-				in.type = EVT_KBRD;
+				in.key.type = EVT_KBRD;
 				break;
 			}
 			if (in.type == EVT_ESCAPE) {
-				in.type = EVT_KBRD;
-				in.key.code = ESCAPE;
-				in.key.mods = 0;
+				in = (ui_event){.key = {.type = EVT_KBRD, .code = ESCAPE, .mods = 0}};
 				break;
 			}
 		}
@@ -1693,6 +1683,28 @@ static bool textui_get_aim_dir(int *dp)
 }
 
 /**
+ * Get a location from the user.
+ *
+ * \param grid is dereferenced and set to location selected by the user.
+ * \return true if the user selected a location; otherwise, return false.
+ *
+ * Because of the use of target_set_interactive(), this function has the
+ * side effect of always clearing the previously set target and, if the
+ * user selects a location, setting the target to that location.
+ *
+ * As currently set up, the player likely will have to switch to free
+ * targeting to select the desired location.  That was also present in
+ * the previous implementation (debugging commands calling
+ * target_set_interactive() directly) so it has been left as is for now.
+ */
+static bool textui_get_point(struct loc *grid)
+{
+	if (!target_set_interactive(TARGET_LOOK, -1, -1, false)) return false;
+	target_get(grid);
+	return true;
+}
+
+/**
  * Initialise the UI hooks to give input asked for by the game
  */
 void textui_input_init(void)
@@ -1703,6 +1715,7 @@ void textui_input_init(void)
 	get_com_hook = textui_get_com;
 	get_rep_dir_hook = textui_get_rep_dir;
 	get_aim_dir_hook = textui_get_aim_dir;
+	get_point_hook = textui_get_point;
 	get_spell_from_book_hook = textui_get_spell_from_book;
 	get_spell_hook = textui_get_spell;
 	get_effect_from_list_hook = textui_get_effect_from_list;
