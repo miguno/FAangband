@@ -18,18 +18,25 @@ jobs:
           cd src
           env OPT="-Werror" make -f Makefile.osx -j$(sysctl -n hw.ncpu)
 
-  release-flags:
+  cmake-curses:
     runs-on: macos-latest
     steps:
+      - name: Install Build Dependencies
+        run: |
+          brew install ncurses
+
       - name: Clone Project
         uses: actions/checkout@v4
 
-      - name: Build with Flags Used for Release
+      - name: Configure (CMake)
         run: |
-          cd src
-          env OPT="-Werror -O2 -DNDEBUG" make -f Makefile.osx -j$(sysctl -n hw.ncpu)
+          cmake -S . -B build -G Ninja -DSUPPORT_GCU_FRONTEND=ON
 
-  autoconf:
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+  autoconf-curses:
     runs-on: macos-latest
     steps:
       # Requires autoconf and automake; install those via homebrew (available
@@ -47,4 +54,4 @@ jobs:
         run: |
           ./autogen.sh
           ./configure --with-no-install --enable-curses --disable-ncursestest
-          make
+          make -j$(sysctl -n hw.ncpu)
